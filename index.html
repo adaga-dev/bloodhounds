@@ -912,264 +912,339 @@
         </div>
     </div>
 
+    <!-- Modal for PIN -->
+    <div id="pin-modal" class="modal">
+        <div class="modal-content" style="max-width: 350px;">
+            <div class="modal-header">
+                <h3>Acesso Restrito</h3>
+                <button id="btn-cancel-pin-icon" class="btn-close-modal" title="Fechar"><i
+                        class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <p style="margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
+                    Por favor, insira o PIN para <br><strong id="pin-action-text"
+                        style="color: var(--text-primary);"></strong>:
+                </p>
+                <input type="password" id="pin-input"
+                    style="width: 100%; text-align: center; letter-spacing: 0.5em; font-size: 1.5rem; padding: 1rem; border-radius: 8px; border: 1px solid var(--card-border); background-color: var(--input-bg); color: var(--text-primary); margin-bottom: 1.5rem; outline: none;"
+                    placeholder="****" maxlength="8">
+                <div style="display: flex; gap: 1rem;">
+                    <button id="btn-cancel-pin" class="btn btn-outline" style="flex: 1;">Cancelar</button>
+                    <button id="btn-confirm-pin" class="btn btn-primary" style="flex: 1;">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Main App Script -->
     <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-import {
-    getFirestore,
-    collection,
-    addDoc,
-    getDocs,
-    deleteDoc,
-    doc,
-    setDoc,
-    getDoc
-} from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+        import {
+            getFirestore,
+            collection,
+            addDoc,
+            getDocs,
+            deleteDoc,
+            doc,
+            setDoc,
+            getDoc
+        } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 
-// ==========================================
-// CONFIGURAÇÃO DO FIREBASE (COLE SUA CHAVE AQUI)
-// ==========================================
-const firebaseConfig = {
-    apiKey: "AIzaSyB107ziig3YkQYaobdEr2_nVb2rWiO3J0s",
-    authDomain: "calculadora-bh.firebaseapp.com",
-    projectId: "calculadora-bh",
-    storageBucket: "calculadora-bh.firebasestorage.app",
-    messagingSenderId: "740120304478",
-    appId: "1:740120304478:web:cc2e1a7f3b8c06e6af0dcf",
-    measurementId: "G-79987R6XMT"
-};
+        // ==========================================
+        // CONFIGURAÇÃO DO FIREBASE (COLE SUA CHAVE AQUI)
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyB107ziig3YkQYaobdEr2_nVb2rWiO3J0s",
+            authDomain: "calculadora-bh.firebaseapp.com",
+            projectId: "calculadora-bh",
+            storageBucket: "calculadora-bh.firebasestorage.app",
+            messagingSenderId: "740120304478",
+            appId: "1:740120304478:web:cc2e1a7f3b8c06e6af0dcf",
+            measurementId: "G-79987R6XMT"
+        };
 
-// ==========================================
-// INICIALIZAÇÃO
-// ==========================================
-let db;
-let hasFirebase = true;
+        // ==========================================
+        // INICIALIZAÇÃO
+        // ==========================================
+        let db;
+        let hasFirebase = true;
 
-try {
-    const app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-} catch (e) {
-    console.warn("Firebase não configurado ou credenciais inválidas. Executando em modo restrito.", e);
-    hasFirebase = false;
-}
-
-// Constants
-const PRICING_DEFAULT = 18.00;
-
-// Tab Routing
-const navBtns = document.querySelectorAll('.nav-btn');
-const tabContents = document.querySelectorAll('.tab-content');
-
-navBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-        // Remove active class from all
-        navBtns.forEach(b => b.classList.remove('active'));
-        tabContents.forEach(t => t.classList.remove('active'));
-
-        // Add active to clicked
-        btn.classList.add('active');
-        const targetId = btn.getAttribute('data-target');
-        document.getElementById(targetId).classList.add('active');
-
-        // Refresh dynamic tabs on click
-        if (targetId === 'tab-registros') {
-            renderHistory();
-        }
-    });
-});
-
-// Element References - Left Panel
-const containerCards = document.getElementById('input-cards-container');
-const btnAddProduct = document.getElementById('btn-add-product');
-const inVendedor = document.getElementById('in-vendedor');
-const inComprador = document.getElementById('in-comprador');
-
-// Element References - Buttons
-const btnResetQty = document.getElementById('btn-reset-qty');
-const btnRegistrarPedido = document.getElementById('btn-registrar-pedido');
-const btnClearHistory = document.getElementById('btn-clear-history');
-const toastNode = document.getElementById('toast');
-const toastLoading = document.getElementById('toast-loading');
-
-// Element References - Right Panel Table
-const tbodyPreview = document.getElementById('preview-tbody');
-const tblQtyTotal = document.getElementById('tbl-qty-total');
-const tblTotTotal = document.getElementById('tbl-tot-total');
-
-// Element References - History Tab
-const tbodyHistory = document.getElementById('history-tbody');
-const orderModal = document.getElementById('order-modal');
-const closeModalBtn = document.getElementById('close-modal');
-const modalItemsList = document.getElementById('modal-items-list');
-
-// State Structure
-let products = [];
-let history = [];
-
-// Formatting Utilities
-const formatCurrency = (value) => {
-    return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-    }).format(value);
-};
-
-const formatInputNumber = (value) => {
-    return Number(value).toFixed(2);
-};
-
-const formatDate = () => {
-    const now = new Date();
-    return now.toLocaleString('pt-BR', {
-        day: '2-digit', month: '2-digit', year: '2-digit',
-        hour: '2-digit', minute: '2-digit'
-    });
-};
-
-const generateId = () => {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
-};
-
-// Initialization / Persistence
-const init = async () => {
-    if (hasFirebase) {
         try {
-            const docRef = doc(db, "config", "produtos");
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists() && docSnap.data().lista && docSnap.data().lista.length > 0) {
-                products = docSnap.data().lista;
-            } else {
-                // Default start se não existir no Firebase
-                products = [
-                    { id: generateId(), name: 'Munição 9mm', qty: 0, val: PRICING_DEFAULT },
-                    { id: generateId(), name: 'Munição .44', qty: 0, val: PRICING_DEFAULT }
-                ];
-                await setDoc(docRef, { lista: products });
-            }
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
         } catch (e) {
-            console.error("Erro ao carregar produtos da nuvem:", e);
+            console.warn("Firebase não configurado ou credenciais inválidas. Executando em modo restrito.", e);
+            hasFirebase = false;
         }
-    } else {
-        const savedProducts = localStorage.getItem('ammoList');
-        if (savedProducts) {
-            try { products = JSON.parse(savedProducts); } catch (e) { }
-        }
-        // Default start if empty
-        if (products.length === 0) {
-            products = [
-                { id: generateId(), name: 'Munição 9mm', qty: 0, val: PRICING_DEFAULT },
-                { id: generateId(), name: 'Munição .44', qty: 0, val: PRICING_DEFAULT }
-            ];
-        }
-    }
 
-    renderAll();
+        // Constants
+        const PRICING_DEFAULT = 18.00;
 
-    // Pull history from Cloud
-    await pullHistoryFromCloud();
-};
+        // Tab Routing
+        const navBtns = document.querySelectorAll('.nav-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
 
-const pullHistoryFromCloud = async () => {
-    if (!hasFirebase) {
-        mostrarToast("Modo Offline: Configure o Firebase-Config para ver o Histórico Real.");
-        return;
-    }
+        navBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Remove active class from all
+                navBtns.forEach(b => b.classList.remove('active'));
+                tabContents.forEach(t => t.classList.remove('active'));
 
-    try {
-        mostrarLoading(true);
-        const querySnapshot = await getDocs(collection(db, "registros_pedidos"));
-        history = [];
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            history.push({
-                id: doc.id, // Reference to firebase actual doc ID
-                date: data.date,
-                vendedor: data.vendedor,
-                comprador: data.comprador,
-                items: data.items,
-                totalQty: data.totalQty,
-                totalVal: data.totalVal,
-                timestamp: data.timestamp // Sorting purpose
+                // Add active to clicked
+                btn.classList.add('active');
+                const targetId = btn.getAttribute('data-target');
+                document.getElementById(targetId).classList.add('active');
+
+                // Refresh dynamic tabs on click
+                if (targetId === 'tab-registros') {
+                    renderHistory();
+                }
             });
         });
 
-        // Sort by timestamp if available or rely on reverse inside renderHistory
-        history.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+        // Element References - Left Panel
+        const containerCards = document.getElementById('input-cards-container');
+        const btnAddProduct = document.getElementById('btn-add-product');
+        const inVendedor = document.getElementById('in-vendedor');
+        const inComprador = document.getElementById('in-comprador');
 
-        mostrarLoading(false);
-        renderHistory();
+        // Element References - Buttons
+        const btnResetQty = document.getElementById('btn-reset-qty');
+        const btnRegistrarPedido = document.getElementById('btn-registrar-pedido');
+        const btnClearHistory = document.getElementById('btn-clear-history');
+        const toastNode = document.getElementById('toast');
+        const toastLoading = document.getElementById('toast-loading');
 
-    } catch (e) {
-        console.error("Erro ao buscar histórico:", e);
-        mostrarLoading(false);
-        mostrarToast("Erro de leitura: Chaves Inválidas ou Internet Ausente");
-    }
-}
+        // Element References - Right Panel Table
+        const tbodyPreview = document.getElementById('preview-tbody');
+        const tblQtyTotal = document.getElementById('tbl-qty-total');
+        const tblTotTotal = document.getElementById('tbl-tot-total');
 
-const saveState = async () => {
-    localStorage.setItem('ammoList', JSON.stringify(products));
-    if (hasFirebase) {
-        try {
-            await setDoc(doc(db, "config", "produtos"), { lista: products });
-        } catch (e) {
-            console.error("Erro ao salvar estado dos produtos na nuvem:", e);
+        // Element References - History Tab
+        const tbodyHistory = document.getElementById('history-tbody');
+        const orderModal = document.getElementById('order-modal');
+        const closeModalBtn = document.getElementById('close-modal');
+        const modalItemsList = document.getElementById('modal-items-list');
+
+        // State Structure
+        let products = [];
+        let history = [];
+
+        // Formatting Utilities
+        const formatCurrency = (value) => {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(value);
+        };
+
+        const formatInputNumber = (value) => {
+            return Number(value).toFixed(2);
+        };
+
+        const formatDate = () => {
+            const now = new Date();
+            return now.toLocaleString('pt-BR', {
+                day: '2-digit', month: '2-digit', year: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+            });
+        };
+
+        const generateId = () => {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        };
+
+        // Initialization / Persistence
+        const init = async () => {
+            if (hasFirebase) {
+                try {
+                    const docRef = doc(db, "config", "produtos");
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists() && docSnap.data().lista && docSnap.data().lista.length > 0) {
+                        products = docSnap.data().lista;
+                    } else {
+                        // Default start se não existir no Firebase
+                        products = [
+                            { id: generateId(), name: 'Munição 9mm', qty: 0, val: PRICING_DEFAULT },
+                            { id: generateId(), name: 'Munição .44', qty: 0, val: PRICING_DEFAULT }
+                        ];
+                        await setDoc(docRef, { lista: products });
+                    }
+                } catch (e) {
+                    console.error("Erro ao carregar produtos da nuvem:", e);
+                }
+            } else {
+                const savedProducts = localStorage.getItem('ammoList');
+                if (savedProducts) {
+                    try { products = JSON.parse(savedProducts); } catch (e) { }
+                }
+                // Default start if empty
+                if (products.length === 0) {
+                    products = [
+                        { id: generateId(), name: 'Munição 9mm', qty: 0, val: PRICING_DEFAULT },
+                        { id: generateId(), name: 'Munição .44', qty: 0, val: PRICING_DEFAULT }
+                    ];
+                }
+            }
+
+            renderAll();
+
+            // Pull history from Cloud
+            await pullHistoryFromCloud();
+        };
+
+        const pullHistoryFromCloud = async () => {
+            if (!hasFirebase) {
+                mostrarToast("Modo Offline: Configure o Firebase-Config para ver o Histórico Real.");
+                return;
+            }
+
+            try {
+                mostrarLoading(true);
+                const querySnapshot = await getDocs(collection(db, "registros_pedidos"));
+                history = [];
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    history.push({
+                        id: doc.id, // Reference to firebase actual doc ID
+                        date: data.date,
+                        vendedor: data.vendedor,
+                        comprador: data.comprador,
+                        items: data.items,
+                        totalQty: data.totalQty,
+                        totalVal: data.totalVal,
+                        timestamp: data.timestamp // Sorting purpose
+                    });
+                });
+
+                // Sort by timestamp if available or rely on reverse inside renderHistory
+                history.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+                mostrarLoading(false);
+                renderHistory();
+
+            } catch (e) {
+                console.error("Erro ao buscar histórico:", e);
+                mostrarLoading(false);
+                mostrarToast("Erro de leitura: Chaves Inválidas ou Internet Ausente");
+            }
         }
-    }
-};
 
-// Array Manipulations
-const addNewProduct = () => {
-    products.push({
-        id: generateId(),
-        name: 'Novo Produto',
-        qty: 0,
-        val: PRICING_DEFAULT
-    });
-    renderAll();
-};
+        const saveState = async () => {
+            localStorage.setItem('ammoList', JSON.stringify(products));
+            if (hasFirebase) {
+                try {
+                    await setDoc(doc(db, "config", "produtos"), { lista: products });
+                } catch (e) {
+                    console.error("Erro ao salvar estado dos produtos na nuvem:", e);
+                }
+            }
+        };
 
-const deleteProduct = (id) => {
-    products = products.filter(p => p.id !== id);
-    renderAll();
-};
+        // PIN Security
+        const PIN_ADMIN = "2910";
 
-const updateProduct = (id, field, value) => {
-    const index = products.findIndex(p => p.id === id);
-    if (index !== -1) {
-        if (field === 'name') {
-            products[index][field] = value;
-        } else if (field === 'qty') {
-            const parsed = parseInt(value, 10);
-            products[index][field] = isNaN(parsed) || parsed < 0 ? 0 : parsed;
-        } else if (field === 'val') {
-            const parsed = parseFloat(value.replace(',', '.'));
-            products[index][field] = isNaN(parsed) || parsed < 0 ? 0 : parsed;
-        }
+        const checkPin = (actionName) => {
+            return new Promise((resolve) => {
+                const pinModal = document.getElementById('pin-modal');
+                const pinInput = document.getElementById('pin-input');
+                const pinActionText = document.getElementById('pin-action-text');
+                const btnConfirm = document.getElementById('btn-confirm-pin');
+                const btnCancel = document.getElementById('btn-cancel-pin');
+                const btnCancelIcon = document.getElementById('btn-cancel-pin-icon');
 
-        saveState();
-        renderRightTable();
-    }
-};
+                pinActionText.textContent = actionName;
+                pinInput.value = '';
+                pinModal.classList.add('show');
+                pinInput.focus();
 
-// Render Logic
-const renderAll = () => {
-    renderLeftCards();
-    renderRightTable();
-    saveState();
-};
+                const cleanup = () => {
+                    pinModal.classList.remove('show');
+                    btnConfirm.removeEventListener('click', onConfirm);
+                    btnCancel.removeEventListener('click', onCancel);
+                    btnCancelIcon.removeEventListener('click', onCancel);
+                    pinInput.removeEventListener('keydown', onKeyDown);
+                };
 
-const renderLeftCards = () => {
-    containerCards.innerHTML = '';
+                const onConfirm = () => {
+                    cleanup();
+                    resolve(pinInput.value === PIN_ADMIN);
+                };
 
-    if (products.length === 0) {
-        containerCards.innerHTML = `<div class="empty-state">Nenhum produto cadastrado.</div>`;
-        return;
-    }
+                const onCancel = () => {
+                    cleanup();
+                    resolve(false);
+                };
 
-    products.forEach(p => {
-        const card = document.createElement('div');
-        card.className = 'input-card';
-        card.innerHTML = `
+                const onKeyDown = (e) => {
+                    if (e.key === 'Enter') onConfirm();
+                    if (e.key === 'Escape') onCancel();
+                };
+
+                btnConfirm.addEventListener('click', onConfirm);
+                btnCancel.addEventListener('click', onCancel);
+                btnCancelIcon.addEventListener('click', onCancel);
+                pinInput.addEventListener('keydown', onKeyDown);
+            });
+        };
+
+        // Array Manipulations
+        const addNewProduct = async () => {
+            if (!(await checkPin("adicionar novo produto"))) return;
+
+            products.push({
+                id: generateId(),
+                name: 'Novo Produto',
+                qty: 0,
+                val: PRICING_DEFAULT
+            });
+            renderAll();
+        };
+
+        const deleteProduct = async (id) => {
+            if (!(await checkPin("excluir produto"))) return;
+
+            products = products.filter(p => p.id !== id);
+            renderAll();
+        };
+
+        const updateProduct = (id, field, value) => {
+            const index = products.findIndex(p => p.id === id);
+            if (index !== -1) {
+                if (field === 'name') {
+                    products[index][field] = value;
+                } else if (field === 'qty') {
+                    const parsed = parseInt(value, 10);
+                    products[index][field] = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+                } else if (field === 'val') {
+                    const parsed = parseFloat(value.replace(',', '.'));
+                    products[index][field] = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+                }
+
+                saveState();
+                renderRightTable();
+            }
+        };
+
+        // Render Logic
+        const renderAll = () => {
+            renderLeftCards();
+            renderRightTable();
+            saveState();
+        };
+
+        const renderLeftCards = () => {
+            containerCards.innerHTML = '';
+
+            if (products.length === 0) {
+                containerCards.innerHTML = `<div class="empty-state">Nenhum produto cadastrado.</div>`;
+                return;
+            }
+
+            products.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'input-card';
+                card.innerHTML = `
             <div class="card-info">
                 <div class="card-header">
                     <input type="text" class="name-input" value="${p.name}" 
@@ -1194,59 +1269,59 @@ const renderLeftCards = () => {
             </div>
         `;
 
-        const inputs = card.querySelectorAll('input[type="number"], input[type="text"]');
-        inputs.forEach(input => {
-            input.addEventListener('focus', function () { this.select(); });
-        });
+                const inputs = card.querySelectorAll('input[type="number"], input[type="text"]');
+                inputs.forEach(input => {
+                    input.addEventListener('focus', function () { this.select(); });
+                });
 
-        containerCards.appendChild(card);
-    });
-};
+                containerCards.appendChild(card);
+            });
+        };
 
-const renderRightTable = () => {
-    tbodyPreview.innerHTML = '';
+        const renderRightTable = () => {
+            tbodyPreview.innerHTML = '';
 
-    let grandQty = 0;
-    let grandTot = 0;
+            let grandQty = 0;
+            let grandTot = 0;
 
-    if (products.length === 0) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="4" style="text-align:center; padding: 2rem; color: var(--text-tertiary)">Adicione produtos no painel ao lado</td>`;
-        tbodyPreview.appendChild(tr);
-    } else {
-        products.forEach(p => {
-            const tot = p.qty * p.val;
-            grandQty += p.qty;
-            grandTot += tot;
+            if (products.length === 0) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td colspan="4" style="text-align:center; padding: 2rem; color: var(--text-tertiary)">Adicione produtos no painel ao lado</td>`;
+                tbodyPreview.appendChild(tr);
+            } else {
+                products.forEach(p => {
+                    const tot = p.qty * p.val;
+                    grandQty += p.qty;
+                    grandTot += tot;
 
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
                 <td class="col-item" title="${p.name}">${p.name}</td>
                 <td class="col-qty">${p.qty}</td>
                 <td class="col-val">${formatCurrency(p.val)}</td>
                 <td class="col-total">${formatCurrency(tot)}</td>
             `;
-            tbodyPreview.appendChild(tr);
-        });
-    }
+                    tbodyPreview.appendChild(tr);
+                });
+            }
 
-    tblQtyTotal.textContent = grandQty;
-    tblTotTotal.textContent = formatCurrency(grandTot);
-};
+            tblQtyTotal.textContent = grandQty;
+            tblTotTotal.textContent = formatCurrency(grandTot);
+        };
 
-const renderHistory = () => {
-    tbodyHistory.innerHTML = '';
+        const renderHistory = () => {
+            tbodyHistory.innerHTML = '';
 
-    if (history.length === 0) {
-        tbodyHistory.innerHTML = `<tr><td colspan="6" class="empty-state">Nenhum pedido registrado ainda.</td></tr>`;
-        return;
-    }
+            if (history.length === 0) {
+                tbodyHistory.innerHTML = `<tr><td colspan="6" class="empty-state">Nenhum pedido registrado ainda.</td></tr>`;
+                return;
+            }
 
-    history.slice().reverse().forEach(record => {
-        let itemsTooltip = record.items.map(i => `${i.qty}x ${i.name}`).join('\n');
+            history.slice().reverse().forEach(record => {
+                let itemsTooltip = record.items.map(i => `${i.qty}x ${i.name}`).join('\n');
 
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
             <td style="color: var(--text-secondary); font-size: 0.85rem;">${record.date}</td>
             <td style="font-weight: 600;">${record.vendedor}</td>
             <td style="color: var(--primary);">${record.comprador}</td>
@@ -1263,208 +1338,211 @@ const renderHistory = () => {
                 <button class="btn-delete-card" onclick="deleteHistoryRecord('${record.id}')" title="Apagar Registro"><i class="fas fa-trash"></i></button>
             </td>
         `;
-        tbodyHistory.appendChild(tr);
-    });
-};
+                tbodyHistory.appendChild(tr);
+            });
+        };
 
-// Domain Actions
-const mostrarToast = (message) => {
-    toastNode.textContent = message;
-    toastNode.classList.add('show');
-    setTimeout(() => {
-        toastNode.classList.remove('show');
-    }, 3000);
-};
+        // Domain Actions
+        const mostrarToast = (message) => {
+            toastNode.textContent = message;
+            toastNode.classList.add('show');
+            setTimeout(() => {
+                toastNode.classList.remove('show');
+            }, 3000);
+        };
 
-const mostrarLoading = (isShowing) => {
-    if (isShowing) {
-        toastLoading.classList.add('show');
-    } else {
-        toastLoading.classList.remove('show');
-    }
-};
+        const mostrarLoading = (isShowing) => {
+            if (isShowing) {
+                toastLoading.classList.add('show');
+            } else {
+                toastLoading.classList.remove('show');
+            }
+        };
 
-const registrarPedido = async () => {
-    const vendedor = inVendedor.value.trim();
-    const comprador = inComprador.value.trim();
+        const registrarPedido = async () => {
+            const vendedor = inVendedor.value.trim();
+            const comprador = inComprador.value.trim();
 
-    if (!vendedor || !comprador) {
-        alert("Por favor, preencha o Nome do Vendedor e do Grupo Comprador para registrar o pedido.");
-        return;
-    }
+            if (!vendedor || !comprador) {
+                alert("Por favor, preencha o Nome do Vendedor e do Grupo Comprador para registrar o pedido.");
+                return;
+            }
 
-    // Filter items that actually have quantities
-    const orderItems = products.filter(p => p.qty > 0).map(p => ({
-        name: p.name,
-        qty: p.qty,
-        val: p.val,
-        tot: p.qty * p.val
-    }));
+            // Filter items that actually have quantities
+            const orderItems = products.filter(p => p.qty > 0).map(p => ({
+                name: p.name,
+                qty: p.qty,
+                val: p.val,
+                tot: p.qty * p.val
+            }));
 
-    if (orderItems.length === 0) {
-        alert("Atenção: Adicione pelo menos um produto com quantidade maior que zero.");
-        return;
-    }
+            if (orderItems.length === 0) {
+                alert("Atenção: Adicione pelo menos um produto com quantidade maior que zero.");
+                return;
+            }
 
-    const totalQty = orderItems.reduce((acc, curr) => acc + curr.qty, 0);
-    const totalVal = orderItems.reduce((acc, curr) => acc + curr.tot, 0);
+            const totalQty = orderItems.reduce((acc, curr) => acc + curr.qty, 0);
+            const totalVal = orderItems.reduce((acc, curr) => acc + curr.tot, 0);
 
-    const record = {
-        date: formatDate(),
-        vendedor,
-        comprador,
-        items: orderItems,
-        totalQty,
-        totalVal,
-        timestamp: Date.now()
-    };
+            const record = {
+                date: formatDate(),
+                vendedor,
+                comprador,
+                items: orderItems,
+                totalQty,
+                totalVal,
+                timestamp: Date.now()
+            };
 
-    if (hasFirebase) {
-        mostrarLoading(true);
-        try {
-            // Push to Google Cloud (Firestore)
-            const docRef = await addDoc(collection(db, "registros_pedidos"), record);
-            record.id = docRef.id; // Assign real DB ID back to memory
-            history.push(record);
+            if (hasFirebase) {
+                mostrarLoading(true);
+                try {
+                    // Push to Google Cloud (Firestore)
+                    const docRef = await addDoc(collection(db, "registros_pedidos"), record);
+                    record.id = docRef.id; // Assign real DB ID back to memory
+                    history.push(record);
 
-            // Auto switch to register tab to see it
-            document.querySelector('[data-target="tab-registros"]').click();
-            mostrarToast("Pedido Enviado para a Nuvem com Sucesso!");
+                    // Auto switch to register tab to see it
+                    document.querySelector('[data-target="tab-registros"]').click();
+                    mostrarToast("Pedido Enviado para a Nuvem com Sucesso!");
 
-        } catch (e) {
-            console.error(e);
-            mostrarToast("Erro Crítico: Suas chaves Firebase não estão corretas.");
-        } finally {
-            mostrarLoading(false);
-        }
-    } else {
-        mostrarToast("Erro: Configure as Credenciais do Firebase primeiro.");
-    }
+                } catch (e) {
+                    console.error(e);
+                    mostrarToast("Erro Crítico: Suas chaves Firebase não estão corretas.");
+                } finally {
+                    mostrarLoading(false);
+                }
+            } else {
+                mostrarToast("Erro: Configure as Credenciais do Firebase primeiro.");
+            }
 
-    // Reset workflow
-    inVendedor.value = '';
-    inComprador.value = '';
-    resetQuantities();
-};
+            // Reset workflow
+            inVendedor.value = '';
+            inComprador.value = '';
+            resetQuantities();
+        };
 
-const openOrderDetails = (id) => {
-    const record = history.find(h => h.id === id);
-    if (!record) return;
+        const openOrderDetails = (id) => {
+            const record = history.find(h => h.id === id);
+            if (!record) return;
 
-    modalItemsList.innerHTML = '';
+            modalItemsList.innerHTML = '';
 
-    record.items.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'modal-item-row';
-        div.innerHTML = `
+            record.items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'modal-item-row';
+                div.innerHTML = `
             <div class="modal-item-name">${item.qty}x ${item.name}</div>
             <div class="modal-item-details">
                 ${formatCurrency(item.val)} unit.<br>
                 <strong>${formatCurrency(item.tot)}</strong>
             </div>
         `;
-        modalItemsList.appendChild(div);
-    });
+                modalItemsList.appendChild(div);
+            });
 
-    orderModal.classList.add('show');
-};
+            orderModal.classList.add('show');
+        };
 
-const closeOrderDetails = () => {
-    orderModal.classList.remove('show');
-};
+        const closeOrderDetails = () => {
+            orderModal.classList.remove('show');
+        };
 
-const deleteHistoryRecord = async (id) => {
-    if (confirm("ATENÇÃO: Este registro será apagado em definitivo da nuvem. Deseja prosseguir?")) {
-        if (!hasFirebase) {
-            alert("Operação bloqueada na cópia off-line.");
-            return;
-        }
+        const deleteHistoryRecord = async (id) => {
+            if (!(await checkPin("apagar registro do histórico"))) return;
 
-        try {
-            mostrarLoading(true);
-            await deleteDoc(doc(db, "registros_pedidos", id));
+            if (confirm("ATENÇÃO: Este registro será apagado em definitivo da nuvem. Deseja prosseguir?")) {
+                if (!hasFirebase) {
+                    alert("Operação bloqueada na cópia off-line.");
+                    return;
+                }
 
-            // Refresh Memory Base
-            history = history.filter(h => h.id !== id);
-            renderHistory();
-            mostrarToast("Registro Destruído na Nuvem!");
+                try {
+                    mostrarLoading(true);
+                    await deleteDoc(doc(db, "registros_pedidos", id));
 
-        } catch (e) {
-            console.error(e);
-            mostrarToast("Ops, erro ao apagar da Nuvem. Verifique console.");
-        } finally {
-            mostrarLoading(false);
-        }
-    }
-};
+                    // Refresh Memory Base
+                    history = history.filter(h => h.id !== id);
+                    renderHistory();
+                    mostrarToast("Registro Destruído na Nuvem!");
 
-const resetQuantities = () => {
-    products.forEach(p => p.qty = 0);
-    renderAll();
-};
+                } catch (e) {
+                    console.error(e);
+                    mostrarToast("Ops, erro ao apagar da Nuvem. Verifique console.");
+                } finally {
+                    mostrarLoading(false);
+                }
+            }
+        };
 
-const resetValues = () => {
-    products.forEach(p => p.val = PRICING_DEFAULT);
-    renderAll();
-};
+        const resetQuantities = () => {
+            products.forEach(p => p.qty = 0);
+            renderAll();
+        };
 
-const exportToCSV = () => {
-    const headers = ['Item', 'Quantidade', 'Valor Unit. (R$)', 'Total (R$)'];
-    let grandQty = 0;
-    let grandTot = 0;
+        const resetValues = () => {
+            products.forEach(p => p.val = PRICING_DEFAULT);
+            renderAll();
+        };
 
-    const rows = products.map(p => {
-        const tot = p.qty * p.val;
-        grandQty += p.qty;
-        grandTot += tot;
-        return [p.name, p.qty, formatInputNumber(p.val), formatInputNumber(tot)];
-    });
+        const exportToCSV = () => {
+            const headers = ['Item', 'Quantidade', 'Valor Unit. (R$)', 'Total (R$)'];
+            let grandQty = 0;
+            let grandTot = 0;
 
-    rows.push(['Total Geral', grandQty, '', formatInputNumber(grandTot)]);
+            const rows = products.map(p => {
+                const tot = p.qty * p.val;
+                grandQty += p.qty;
+                grandTot += tot;
+                return [p.name, p.qty, formatInputNumber(p.val), formatInputNumber(tot)];
+            });
 
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // Includes BOM for UTF-8 proper rendering in Excel
-    csvContent += headers.join(";") + "\n";
-    rows.forEach(rowArray => {
-        let row = rowArray.join(";");
-        csvContent += row + "\n";
-    });
+            rows.push(['Total Geral', grandQty, '', formatInputNumber(grandTot)]);
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "calculadora_municao_dinamica.csv");
-    document.body.appendChild(link); // Required for FF
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // Includes BOM for UTF-8 proper rendering in Excel
+            csvContent += headers.join(";") + "\n";
+            rows.forEach(rowArray => {
+                let row = rowArray.join(";");
+                csvContent += row + "\n";
+            });
 
-    link.click();
-    link.remove();
-};
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "calculadora_municao_dinamica.csv");
+            document.body.appendChild(link); // Required for FF
 
-// Global Exposure
-window.deleteProduct = deleteProduct;
-window.updateProduct = updateProduct;
-window.deleteHistoryRecord = deleteHistoryRecord;
-window.openOrderDetails = openOrderDetails;
+            link.click();
+            link.remove();
+        };
 
-// Observers
-btnAddProduct.addEventListener('click', addNewProduct);
-btnResetQty.addEventListener('click', resetQuantities);
-btnRegistrarPedido.addEventListener('click', registrarPedido);
-btnClearHistory.addEventListener('click', () => {
-    alert("Como os dados agora são sincronizados em nuvem via Firebase, recomendamos apagar os arquivos incorretos manualmente (lixeira) para segurança.");
-});
+        // Global Exposure
+        window.deleteProduct = deleteProduct;
+        window.updateProduct = updateProduct;
+        window.deleteHistoryRecord = deleteHistoryRecord;
+        window.openOrderDetails = openOrderDetails;
 
-closeModalBtn.addEventListener('click', closeOrderDetails);
+        // Observers
+        btnAddProduct.addEventListener('click', addNewProduct);
+        btnResetQty.addEventListener('click', resetQuantities);
+        btnRegistrarPedido.addEventListener('click', registrarPedido);
+        btnClearHistory.addEventListener('click', () => {
+            alert("Como os dados agora são sincronizados em nuvem via Firebase, recomendamos apagar os arquivos incorretos manualmente (lixeira) para segurança.");
+        });
 
-// Close modal when clicking outside
-orderModal.addEventListener('click', (e) => {
-    if (e.target === orderModal) {
-        closeOrderDetails();
-    }
-});
+        closeModalBtn.addEventListener('click', closeOrderDetails);
 
-// Start
-document.addEventListener('DOMContentLoaded', init);
+        // Close modal when clicking outside
+        orderModal.addEventListener('click', (e) => {
+            if (e.target === orderModal) {
+                closeOrderDetails();
+            }
+        });
 
-</script>
+        // Start
+        document.addEventListener('DOMContentLoaded', init);
+
+    </script>
 </body>
+
 </html>
