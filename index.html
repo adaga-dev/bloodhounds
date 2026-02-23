@@ -921,7 +921,9 @@ import {
     addDoc,
     getDocs,
     deleteDoc,
-    doc
+    doc,
+    setDoc,
+    getDoc
 } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 
 // ==========================================
@@ -1030,18 +1032,35 @@ const generateId = () => {
 
 // Initialization / Persistence
 const init = async () => {
-    const savedProducts = localStorage.getItem('ammoList');
-
-    if (savedProducts) {
-        try { products = JSON.parse(savedProducts); } catch (e) { }
-    }
-
-    // Default start if empty
-    if (products.length === 0) {
-        products = [
-            { id: generateId(), name: 'Munição 9mm', qty: 0, val: PRICING_DEFAULT },
-            { id: generateId(), name: 'Munição .44', qty: 0, val: PRICING_DEFAULT }
-        ];
+    if (hasFirebase) {
+        try {
+            const docRef = doc(db, "config", "produtos");
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists() && docSnap.data().lista && docSnap.data().lista.length > 0) {
+                products = docSnap.data().lista;
+            } else {
+                // Default start se não existir no Firebase
+                products = [
+                    { id: generateId(), name: 'Munição 9mm', qty: 0, val: PRICING_DEFAULT },
+                    { id: generateId(), name: 'Munição .44', qty: 0, val: PRICING_DEFAULT }
+                ];
+                await setDoc(docRef, { lista: products });
+            }
+        } catch (e) {
+            console.error("Erro ao carregar produtos da nuvem:", e);
+        }
+    } else {
+        const savedProducts = localStorage.getItem('ammoList');
+        if (savedProducts) {
+            try { products = JSON.parse(savedProducts); } catch (e) { }
+        }
+        // Default start if empty
+        if (products.length === 0) {
+            products = [
+                { id: generateId(), name: 'Munição 9mm', qty: 0, val: PRICING_DEFAULT },
+                { id: generateId(), name: 'Munição .44', qty: 0, val: PRICING_DEFAULT }
+            ];
+        }
     }
 
     renderAll();
@@ -1087,8 +1106,15 @@ const pullHistoryFromCloud = async () => {
     }
 }
 
-const saveState = () => {
+const saveState = async () => {
     localStorage.setItem('ammoList', JSON.stringify(products));
+    if (hasFirebase) {
+        try {
+            await setDoc(doc(db, "config", "produtos"), { lista: products });
+        } catch (e) {
+            console.error("Erro ao salvar estado dos produtos na nuvem:", e);
+        }
+    }
 };
 
 // Array Manipulations
@@ -1319,7 +1345,6 @@ const registrarPedido = async () => {
     inVendedor.value = '';
     inComprador.value = '';
     resetQuantities();
-
 };
 
 const openOrderDetails = (id) => {
@@ -1442,5 +1467,4 @@ document.addEventListener('DOMContentLoaded', init);
 
 </script>
 </body>
-
 </html>
