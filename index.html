@@ -1,0 +1,1446 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Munição</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #0a0b0e;
+            --panel-bg: #111318;
+            --panel-bg-right: #12151b;
+            --card-bg: #1c1f26;
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #ffffff;
+            --text-secondary: #9ca3af;
+            --text-tertiary: #6b7280;
+            --accent-color: #f1f5f9;
+            --primary: #3b82f6;
+            /* Blue primary like logotype */
+            --primary-hover: #2563eb;
+            --btn-border: rgba(255, 255, 255, 0.15);
+            --btn-border-focus: #4ade80;
+            /* Subtle green for focus */
+            --input-bg: #272a33;
+            --input-border: rgba(255, 255, 255, 0.05);
+            --danger: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        /* App Layout Grid */
+        .app-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background-color: #0d0f13;
+            border-right: 1px solid var(--card-border);
+            display: flex;
+            flex-direction: column;
+            padding: 2rem 1.5rem;
+            z-index: 10;
+        }
+
+        .sidebar-logo-container {
+            width: 100%;
+            aspect-ratio: 1/1;
+            margin-bottom: 2.5rem;
+            border-radius: 16px;
+            overflow: hidden;
+            background-color: var(--card-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--card-border);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .sidebar-logo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 1rem 1.5rem;
+            text-align: left;
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .nav-btn:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        .nav-btn.active {
+            background-color: var(--primary);
+            color: white;
+            box-shadow: 0 4px 15px -3px rgba(59, 130, 246, 0.3);
+        }
+
+        .nav-btn i {
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Main Area & Tabs */
+        .content-area {
+            padding: 2rem;
+            height: 100vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.4s ease-out;
+            height: 100%;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Dashboard Grid (Old layout, now inside tab) */
+        .dashboard {
+            display: flex;
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 1400px;
+            min-height: calc(100vh - 4rem);
+        }
+
+        /* Common Panel Styles */
+        .panel {
+            border-radius: 16px;
+            border: 1px solid var(--card-border);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-left {
+            flex: 1;
+            background-color: var(--panel-bg);
+        }
+
+        .panel-right {
+            flex: 1;
+            background-color: var(--panel-bg-right);
+        }
+
+        .panel-full {
+            background-color: var(--panel-bg);
+            min-height: calc(100vh - 4rem);
+        }
+
+        /* Order Info Forms (New) */
+        .order-info-card {
+            background-color: rgba(59, 130, 246, 0.05);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .form-group input {
+            background-color: var(--bg-main);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+            padding: 0.85rem 1rem;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        /* Header Styles */
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .panel-header h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-right: 1.5rem;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+        }
+
+        .subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Add Button Container */
+        .add-container {
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .btn-add-product {
+            background-color: transparent;
+            border: 1px dashed var(--btn-border);
+            color: var(--text-secondary);
+            width: 100%;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .btn-add-product:hover {
+            border-color: var(--text-primary);
+            color: var(--text-primary);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Left Panel Elements */
+        .input-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 2rem;
+            position: relative;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .card-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Input that looks like a title */
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .name-input {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            font-weight: 700;
+            font-family: inherit;
+            padding: 0.2rem 0.5rem;
+            margin-left: -0.5rem;
+            border-radius: 6px;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        .name-input:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .name-input:focus {
+            background: var(--input-bg);
+            border-color: rgba(255, 255, 255, 0.2);
+            outline: none;
+        }
+
+        .btn-delete-card {
+            background: transparent;
+            border: none;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0.2rem;
+            transition: color 0.2s;
+        }
+
+        .btn-delete-card:hover {
+            color: var(--danger);
+        }
+
+        .card-fields {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            width: 110px;
+        }
+
+        .field-group label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        input[type="number"] {
+            background-color: var(--input-bg);
+            border: 1px solid var(--input-border);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        input[type="number"]:focus {
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Remove Arrows */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type=number] {
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
+        /* Actions */
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .action-buttons-secondary {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+
+        .btn {
+            padding: 0.8rem 1.25rem;
+            border-radius: 24px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            outline: none;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            border: 1px solid var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            box-shadow: 0 4px 15px -3px rgba(59, 130, 246, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--btn-border-focus);
+            color: var(--text-primary);
+        }
+
+        .btn-outline:hover {
+            background-color: rgba(74, 222, 128, 0.1);
+        }
+
+        .btn-dark {
+            background-color: var(--card-bg);
+            border: 1px solid var(--btn-border);
+            color: var(--text-primary);
+        }
+
+        .btn-dark:hover {
+            background-color: #272a33;
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+        }
+
+        .panel-footer p {
+            font-size: 0.8rem;
+            color: var(--text-tertiary);
+            line-height: 1.5;
+        }
+
+        /* Right Panel: Table */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .full-height-table {
+            flex: 1;
+        }
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        .preview-table th {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding-bottom: 1.2rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .preview-table td {
+            padding: 1.2rem 0;
+            border-bottom: 1px solid var(--card-border);
+            font-size: 0.95rem;
+            color: var(--accent-color);
+        }
+
+        /* Dynamic row styles */
+        .preview-table tbody tr {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .preview-table tbody tr td.col-item input {
+            background: transparent;
+            border: none;
+            color: inherit;
+            font-family: inherit;
+            font-size: inherit;
+            font-weight: 600;
+            width: 100%;
+            outline: none;
+            pointer-events: none;
+        }
+
+        .preview-table tbody tr td.col-item {
+            font-weight: 600;
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+
+        .preview-table tfoot td {
+            font-weight: 700;
+            border-bottom: none;
+            padding-top: 1.5rem;
+            font-size: 1.05rem;
+            color: var(--text-primary);
+        }
+
+        .history-table td {
+            padding: 1.5rem 1rem 1.5rem 0;
+        }
+
+        .history-table th {
+            padding-right: 1rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-tertiary);
+            border: 1px dashed var(--btn-border);
+            border-radius: 12px;
+        }
+
+        /* Info button in table */
+        .btn-info {
+            background: transparent;
+            border: none;
+            color: var(--primary);
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            padding: 0.3rem;
+            border-radius: 50%;
+        }
+
+        .btn-info:hover {
+            color: var(--primary-hover);
+            background-color: rgba(59, 130, 246, 0.1);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-content {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 450px;
+            padding: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transform: translateY(-20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal.show .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 1rem;
+        }
+
+        .modal-header h3 {
+            font-size: 1.25rem;
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+
+        .btn-close-modal {
+            background: transparent;
+            border: none;
+            color: var(--text-tertiary);
+            font-size: 1.25rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .btn-close-modal:hover {
+            color: var(--danger);
+        }
+
+        .modal-item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.85rem 0;
+            border-bottom: 1px dashed var(--card-border);
+        }
+
+        .modal-item-row:last-child {
+            border-bottom: none;
+        }
+
+        .modal-item-name {
+            font-weight: 600;
+            color: var(--accent-color);
+        }
+
+        .modal-item-details {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            text-align: right;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: #10b981;
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 30px;
+            font-weight: 600;
+            box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 100;
+            opacity: 0;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Responsiveness */
+        @media (max-width: 1024px) {
+            .app-layout {
+                grid-template-columns: 200px 1fr;
+            }
+
+            .dashboard {
+                flex-direction: column;
+                height: auto;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .app-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+            }
+
+            .sidebar {
+                flex-direction: row;
+                padding: 1rem;
+                border-right: none;
+                border-bottom: 1px solid var(--card-border);
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .sidebar-logo-container {
+                width: 50px;
+                height: 50px;
+                margin-bottom: 0;
+            }
+
+            .sidebar-nav {
+                flex-direction: row;
+            }
+
+            .nav-btn {
+                padding: 0.5rem 1rem;
+            }
+
+            .order-info-card {
+                flex-direction: column;
+            }
+
+            .input-card {
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+
+            .card-fields {
+                width: 100%;
+            }
+
+            .field-group {
+                flex: 1;
+            }
+        }
+    </style>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-logo-container">
+                <img src="https://cdn.discordapp.com/attachments/1031721853800173578/1475364978516295830/image.png?ex=699d3835&is=699be6b5&hm=4750924170613c3cdc282b0288e6bd529b1c829f167324a0c4e98b3cdf439df3&.png"
+                    alt="Bloodhounds Logo" class="sidebar-logo"
+                    onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWMyMDI2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjEycHgiIGZpbGw9IiM2YjcyODAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5Mb2dvIGFxdWk8L3RleHQ+PC9zdmc+'"
+                    title="Salve sua logo como 'logo.png' na pasta do projeto">
+            </div>
+
+            <nav class="sidebar-nav">
+                <button class="nav-btn active" data-target="tab-entradas">
+                    <i class="fas fa-calculator"></i> Entradas
+                </button>
+                <button class="nav-btn" data-target="tab-registros">
+                    <i class="fas fa-clipboard-list"></i> Registros
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="content-area">
+
+            <!-- TAB 1: ENTRADAS -->
+            <div id="tab-entradas" class="tab-content active">
+                <div class="dashboard">
+                    <!-- Left Panel: Entradas -->
+                    <section class="panel panel-left">
+                        <header class="panel-header">
+                            <h2>Entradas</h2>
+                            <div class="header-actions">
+                                <span class="subtitle" style="margin-right: 1rem;">Quantidades &times; valores =
+                                    totais</span>
+                                <button type="button" class="btn btn-primary btn-sm" id="btn-registrar-pedido">
+                                    <i class="fas fa-check"></i> Registrar Pedido
+                                </button>
+                            </div>
+                        </header>
+
+                        <!-- Dados do Pedido -->
+                        <div class="order-info-card">
+                            <div class="form-group">
+                                <label for="in-vendedor">NOME DO VENDEDOR</label>
+                                <input type="text" id="in-vendedor" placeholder="Quem está vendendo?">
+                            </div>
+                            <div class="form-group">
+                                <label for="in-comprador">GRUPO COMPRADOR</label>
+                                <input type="text" id="in-comprador" placeholder="Nome do grupo ou facção">
+                            </div>
+                        </div>
+
+                        <!-- Cards Gen Inject -->
+                        <div class="input-cards" id="input-cards-container">
+                            <!-- Cards will be injected here via JS -->
+                        </div>
+
+                        <!-- Add Button -->
+                        <div class="add-container">
+                            <button type="button" class="btn btn-add-product" id="btn-add-product">
+                                <i class="fas fa-plus"></i> Adicionar Produto
+                            </button>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="action-buttons">
+                            <button type="button" class="btn btn-outline" id="btn-reset-qty">Zerar quantidades</button>
+                        </div>
+
+                    </section>
+
+                    <!-- Right Panel: Prévia da Planilha -->
+                    <section class="panel panel-right">
+                        <header class="panel-header">
+                            <h2>Prévia da Planilha</h2>
+                            <span class="subtitle">Formato de tabela (estilo planilha)</span>
+                        </header>
+
+                        <div class="table-container">
+                            <table class="preview-table">
+                                <thead>
+                                    <tr>
+                                        <th class="col-item">ITEM</th>
+                                        <th class="col-qty">QUANTIDADE</th>
+                                        <th class="col-val">VALOR (R$)</th>
+                                        <th class="col-total">TOTAL (R$)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="preview-tbody">
+                                    <!-- Rows will be injected here via JS -->
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td class="col-item">Total geral</td>
+                                        <td class="col-qty" id="tbl-qty-total">0</td>
+                                        <td class="col-val">&mdash;</td>
+                                        <td class="col-total" id="tbl-tot-total">R$ 0,00</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <div class="table-caption">
+                            <p>Os valores acima refletem os campos da esquerda e farão parte do Registro.</p>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- TAB 2: REGISTROS -->
+            <div id="tab-registros" class="tab-content">
+                <section class="panel panel-full">
+                    <header class="panel-header">
+                        <h2>Controle de Pedidos Registrados</h2>
+                        <span class="subtitle">Acompanhamento das transações salvas no sistema</span>
+                        <button type="button" class="btn btn-outline btn-sm" id="btn-clear-history"
+                            style="margin-left:auto;">
+                            <i class="fas fa-trash"></i> Limpar Histórico
+                        </button>
+                    </header>
+
+                    <div class="table-container full-height-table">
+                        <table class="preview-table history-table">
+                            <thead>
+                                <tr>
+                                    <th>DATA / HORA</th>
+                                    <th>VENDEDOR</th>
+                                    <th>GRUPO COMPRADOR</th>
+                                    <th>RESUMO DE ITENS</th>
+                                    <th style="text-align: right;">TOTAL DO PEDIDO</th>
+                                    <th style="width: 50px;"></th> <!-- Delete col -->
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody">
+                                <!-- History injected via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">Pedido registrado com sucesso!</div>
+    <div id="toast-loading" class="toast" style="background-color: var(--primary);">Sincronizando com a Nuvem...</div>
+
+    <!-- Modal for Order Details -->
+    <div id="order-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Detalhes do Pedido</h3>
+                <button id="close-modal" class="btn-close-modal" title="Fechar"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="modal-items-list">
+                <!-- Items injected here via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Script -->
+    <script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+import {
+    getFirestore,
+    collection,
+    addDoc,
+    getDocs,
+    deleteDoc,
+    doc
+} from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+
+// ==========================================
+// CONFIGURAÇÃO DO FIREBASE (COLE SUA CHAVE AQUI)
+// ==========================================
+const firebaseConfig = {
+    apiKey: "AIzaSyB107ziig3YkQYaobdEr2_nVb2rWiO3J0s",
+    authDomain: "calculadora-bh.firebaseapp.com",
+    projectId: "calculadora-bh",
+    storageBucket: "calculadora-bh.firebasestorage.app",
+    messagingSenderId: "740120304478",
+    appId: "1:740120304478:web:cc2e1a7f3b8c06e6af0dcf",
+    measurementId: "G-79987R6XMT"
+};
+
+// ==========================================
+// INICIALIZAÇÃO
+// ==========================================
+let db;
+let hasFirebase = true;
+
+try {
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+} catch (e) {
+    console.warn("Firebase não configurado ou credenciais inválidas. Executando em modo restrito.", e);
+    hasFirebase = false;
+}
+
+// Constants
+const PRICING_DEFAULT = 18.00;
+
+// Tab Routing
+const navBtns = document.querySelectorAll('.nav-btn');
+const tabContents = document.querySelectorAll('.tab-content');
+
+navBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        // Remove active class from all
+        navBtns.forEach(b => b.classList.remove('active'));
+        tabContents.forEach(t => t.classList.remove('active'));
+
+        // Add active to clicked
+        btn.classList.add('active');
+        const targetId = btn.getAttribute('data-target');
+        document.getElementById(targetId).classList.add('active');
+
+        // Refresh dynamic tabs on click
+        if (targetId === 'tab-registros') {
+            renderHistory();
+        }
+    });
+});
+
+// Element References - Left Panel
+const containerCards = document.getElementById('input-cards-container');
+const btnAddProduct = document.getElementById('btn-add-product');
+const inVendedor = document.getElementById('in-vendedor');
+const inComprador = document.getElementById('in-comprador');
+
+// Element References - Buttons
+const btnResetQty = document.getElementById('btn-reset-qty');
+const btnRegistrarPedido = document.getElementById('btn-registrar-pedido');
+const btnClearHistory = document.getElementById('btn-clear-history');
+const toastNode = document.getElementById('toast');
+const toastLoading = document.getElementById('toast-loading');
+
+// Element References - Right Panel Table
+const tbodyPreview = document.getElementById('preview-tbody');
+const tblQtyTotal = document.getElementById('tbl-qty-total');
+const tblTotTotal = document.getElementById('tbl-tot-total');
+
+// Element References - History Tab
+const tbodyHistory = document.getElementById('history-tbody');
+const orderModal = document.getElementById('order-modal');
+const closeModalBtn = document.getElementById('close-modal');
+const modalItemsList = document.getElementById('modal-items-list');
+
+// State Structure
+let products = [];
+let history = [];
+
+// Formatting Utilities
+const formatCurrency = (value) => {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(value);
+};
+
+const formatInputNumber = (value) => {
+    return Number(value).toFixed(2);
+};
+
+const formatDate = () => {
+    const now = new Date();
+    return now.toLocaleString('pt-BR', {
+        day: '2-digit', month: '2-digit', year: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+    });
+};
+
+const generateId = () => {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
+
+// Initialization / Persistence
+const init = async () => {
+    const savedProducts = localStorage.getItem('ammoList');
+
+    if (savedProducts) {
+        try { products = JSON.parse(savedProducts); } catch (e) { }
+    }
+
+    // Default start if empty
+    if (products.length === 0) {
+        products = [
+            { id: generateId(), name: 'Munição 9mm', qty: 0, val: PRICING_DEFAULT },
+            { id: generateId(), name: 'Munição .44', qty: 0, val: PRICING_DEFAULT }
+        ];
+    }
+
+    renderAll();
+
+    // Pull history from Cloud
+    await pullHistoryFromCloud();
+};
+
+const pullHistoryFromCloud = async () => {
+    if (!hasFirebase) {
+        mostrarToast("Modo Offline: Configure o Firebase-Config para ver o Histórico Real.");
+        return;
+    }
+
+    try {
+        mostrarLoading(true);
+        const querySnapshot = await getDocs(collection(db, "registros_pedidos"));
+        history = [];
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            history.push({
+                id: doc.id, // Reference to firebase actual doc ID
+                date: data.date,
+                vendedor: data.vendedor,
+                comprador: data.comprador,
+                items: data.items,
+                totalQty: data.totalQty,
+                totalVal: data.totalVal,
+                timestamp: data.timestamp // Sorting purpose
+            });
+        });
+
+        // Sort by timestamp if available or rely on reverse inside renderHistory
+        history.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+        mostrarLoading(false);
+        renderHistory();
+
+    } catch (e) {
+        console.error("Erro ao buscar histórico:", e);
+        mostrarLoading(false);
+        mostrarToast("Erro de leitura: Chaves Inválidas ou Internet Ausente");
+    }
+}
+
+const saveState = () => {
+    localStorage.setItem('ammoList', JSON.stringify(products));
+};
+
+// Array Manipulations
+const addNewProduct = () => {
+    products.push({
+        id: generateId(),
+        name: 'Novo Produto',
+        qty: 0,
+        val: PRICING_DEFAULT
+    });
+    renderAll();
+};
+
+const deleteProduct = (id) => {
+    products = products.filter(p => p.id !== id);
+    renderAll();
+};
+
+const updateProduct = (id, field, value) => {
+    const index = products.findIndex(p => p.id === id);
+    if (index !== -1) {
+        if (field === 'name') {
+            products[index][field] = value;
+        } else if (field === 'qty') {
+            const parsed = parseInt(value, 10);
+            products[index][field] = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+        } else if (field === 'val') {
+            const parsed = parseFloat(value.replace(',', '.'));
+            products[index][field] = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+        }
+
+        saveState();
+        renderRightTable();
+    }
+};
+
+// Render Logic
+const renderAll = () => {
+    renderLeftCards();
+    renderRightTable();
+    saveState();
+};
+
+const renderLeftCards = () => {
+    containerCards.innerHTML = '';
+
+    if (products.length === 0) {
+        containerCards.innerHTML = `<div class="empty-state">Nenhum produto cadastrado.</div>`;
+        return;
+    }
+
+    products.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'input-card';
+        card.innerHTML = `
+            <div class="card-info">
+                <div class="card-header">
+                    <input type="text" class="name-input" value="${p.name}" 
+                        onchange="updateProduct('${p.id}', 'name', this.value)"
+                        title="Clique para editar o nome">
+                    <button type="button" class="btn-delete-card" onclick="deleteProduct('${p.id}')" title="Excluir item">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-fields">
+                <div class="field-group">
+                    <label>QUANTIDADE</label>
+                    <input type="number" min="0" value="${p.qty}" 
+                        oninput="updateProduct('${p.id}', 'qty', this.value)">
+                </div>
+                <div class="field-group">
+                    <label>VALOR (R$)</label>
+                    <input type="number" min="0" step="0.01" value="${formatInputNumber(p.val)}" 
+                        oninput="updateProduct('${p.id}', 'val', this.value)">
+                </div>
+            </div>
+        `;
+
+        const inputs = card.querySelectorAll('input[type="number"], input[type="text"]');
+        inputs.forEach(input => {
+            input.addEventListener('focus', function () { this.select(); });
+        });
+
+        containerCards.appendChild(card);
+    });
+};
+
+const renderRightTable = () => {
+    tbodyPreview.innerHTML = '';
+
+    let grandQty = 0;
+    let grandTot = 0;
+
+    if (products.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="4" style="text-align:center; padding: 2rem; color: var(--text-tertiary)">Adicione produtos no painel ao lado</td>`;
+        tbodyPreview.appendChild(tr);
+    } else {
+        products.forEach(p => {
+            const tot = p.qty * p.val;
+            grandQty += p.qty;
+            grandTot += tot;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="col-item" title="${p.name}">${p.name}</td>
+                <td class="col-qty">${p.qty}</td>
+                <td class="col-val">${formatCurrency(p.val)}</td>
+                <td class="col-total">${formatCurrency(tot)}</td>
+            `;
+            tbodyPreview.appendChild(tr);
+        });
+    }
+
+    tblQtyTotal.textContent = grandQty;
+    tblTotTotal.textContent = formatCurrency(grandTot);
+};
+
+const renderHistory = () => {
+    tbodyHistory.innerHTML = '';
+
+    if (history.length === 0) {
+        tbodyHistory.innerHTML = `<tr><td colspan="6" class="empty-state">Nenhum pedido registrado ainda.</td></tr>`;
+        return;
+    }
+
+    history.slice().reverse().forEach(record => {
+        let itemsTooltip = record.items.map(i => `${i.qty}x ${i.name}`).join('\n');
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="color: var(--text-secondary); font-size: 0.85rem;">${record.date}</td>
+            <td style="font-weight: 600;">${record.vendedor}</td>
+            <td style="color: var(--primary);">${record.comprador}</td>
+            <td>
+                <span style="display: flex; align-items: center; gap: 0.5rem;">
+                    ${record.totalQty} itens
+                    <button type="button" class="btn-info" onclick="openOrderDetails('${record.id}')" title="Ver Detalhes do Pedido">
+                        <i class="fas fa-info-circle"></i>
+                    </button>
+                </span>
+            </td>
+            <td style="text-align: right; font-weight: 700;">${formatCurrency(record.totalVal)}</td>
+            <td style="text-align: right;">
+                <button class="btn-delete-card" onclick="deleteHistoryRecord('${record.id}')" title="Apagar Registro"><i class="fas fa-trash"></i></button>
+            </td>
+        `;
+        tbodyHistory.appendChild(tr);
+    });
+};
+
+// Domain Actions
+const mostrarToast = (message) => {
+    toastNode.textContent = message;
+    toastNode.classList.add('show');
+    setTimeout(() => {
+        toastNode.classList.remove('show');
+    }, 3000);
+};
+
+const mostrarLoading = (isShowing) => {
+    if (isShowing) {
+        toastLoading.classList.add('show');
+    } else {
+        toastLoading.classList.remove('show');
+    }
+};
+
+const registrarPedido = async () => {
+    const vendedor = inVendedor.value.trim();
+    const comprador = inComprador.value.trim();
+
+    if (!vendedor || !comprador) {
+        alert("Por favor, preencha o Nome do Vendedor e do Grupo Comprador para registrar o pedido.");
+        return;
+    }
+
+    // Filter items that actually have quantities
+    const orderItems = products.filter(p => p.qty > 0).map(p => ({
+        name: p.name,
+        qty: p.qty,
+        val: p.val,
+        tot: p.qty * p.val
+    }));
+
+    if (orderItems.length === 0) {
+        alert("Atenção: Adicione pelo menos um produto com quantidade maior que zero.");
+        return;
+    }
+
+    const totalQty = orderItems.reduce((acc, curr) => acc + curr.qty, 0);
+    const totalVal = orderItems.reduce((acc, curr) => acc + curr.tot, 0);
+
+    const record = {
+        date: formatDate(),
+        vendedor,
+        comprador,
+        items: orderItems,
+        totalQty,
+        totalVal,
+        timestamp: Date.now()
+    };
+
+    if (hasFirebase) {
+        mostrarLoading(true);
+        try {
+            // Push to Google Cloud (Firestore)
+            const docRef = await addDoc(collection(db, "registros_pedidos"), record);
+            record.id = docRef.id; // Assign real DB ID back to memory
+            history.push(record);
+
+            // Auto switch to register tab to see it
+            document.querySelector('[data-target="tab-registros"]').click();
+            mostrarToast("Pedido Enviado para a Nuvem com Sucesso!");
+
+        } catch (e) {
+            console.error(e);
+            mostrarToast("Erro Crítico: Suas chaves Firebase não estão corretas.");
+        } finally {
+            mostrarLoading(false);
+        }
+    } else {
+        mostrarToast("Erro: Configure as Credenciais do Firebase primeiro.");
+    }
+
+    // Reset workflow
+    inVendedor.value = '';
+    inComprador.value = '';
+    resetQuantities();
+
+};
+
+const openOrderDetails = (id) => {
+    const record = history.find(h => h.id === id);
+    if (!record) return;
+
+    modalItemsList.innerHTML = '';
+
+    record.items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'modal-item-row';
+        div.innerHTML = `
+            <div class="modal-item-name">${item.qty}x ${item.name}</div>
+            <div class="modal-item-details">
+                ${formatCurrency(item.val)} unit.<br>
+                <strong>${formatCurrency(item.tot)}</strong>
+            </div>
+        `;
+        modalItemsList.appendChild(div);
+    });
+
+    orderModal.classList.add('show');
+};
+
+const closeOrderDetails = () => {
+    orderModal.classList.remove('show');
+};
+
+const deleteHistoryRecord = async (id) => {
+    if (confirm("ATENÇÃO: Este registro será apagado em definitivo da nuvem. Deseja prosseguir?")) {
+        if (!hasFirebase) {
+            alert("Operação bloqueada na cópia off-line.");
+            return;
+        }
+
+        try {
+            mostrarLoading(true);
+            await deleteDoc(doc(db, "registros_pedidos", id));
+
+            // Refresh Memory Base
+            history = history.filter(h => h.id !== id);
+            renderHistory();
+            mostrarToast("Registro Destruído na Nuvem!");
+
+        } catch (e) {
+            console.error(e);
+            mostrarToast("Ops, erro ao apagar da Nuvem. Verifique console.");
+        } finally {
+            mostrarLoading(false);
+        }
+    }
+};
+
+const resetQuantities = () => {
+    products.forEach(p => p.qty = 0);
+    renderAll();
+};
+
+const resetValues = () => {
+    products.forEach(p => p.val = PRICING_DEFAULT);
+    renderAll();
+};
+
+const exportToCSV = () => {
+    const headers = ['Item', 'Quantidade', 'Valor Unit. (R$)', 'Total (R$)'];
+    let grandQty = 0;
+    let grandTot = 0;
+
+    const rows = products.map(p => {
+        const tot = p.qty * p.val;
+        grandQty += p.qty;
+        grandTot += tot;
+        return [p.name, p.qty, formatInputNumber(p.val), formatInputNumber(tot)];
+    });
+
+    rows.push(['Total Geral', grandQty, '', formatInputNumber(grandTot)]);
+
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // Includes BOM for UTF-8 proper rendering in Excel
+    csvContent += headers.join(";") + "\n";
+    rows.forEach(rowArray => {
+        let row = rowArray.join(";");
+        csvContent += row + "\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "calculadora_municao_dinamica.csv");
+    document.body.appendChild(link); // Required for FF
+
+    link.click();
+    link.remove();
+};
+
+// Global Exposure
+window.deleteProduct = deleteProduct;
+window.updateProduct = updateProduct;
+window.deleteHistoryRecord = deleteHistoryRecord;
+window.openOrderDetails = openOrderDetails;
+
+// Observers
+btnAddProduct.addEventListener('click', addNewProduct);
+btnResetQty.addEventListener('click', resetQuantities);
+btnRegistrarPedido.addEventListener('click', registrarPedido);
+btnClearHistory.addEventListener('click', () => {
+    alert("Como os dados agora são sincronizados em nuvem via Firebase, recomendamos apagar os arquivos incorretos manualmente (lixeira) para segurança.");
+});
+
+closeModalBtn.addEventListener('click', closeOrderDetails);
+
+// Close modal when clicking outside
+orderModal.addEventListener('click', (e) => {
+    if (e.target === orderModal) {
+        closeOrderDetails();
+    }
+});
+
+// Start
+document.addEventListener('DOMContentLoaded', init);
+
+</script>
+</body>
+
+</html>
