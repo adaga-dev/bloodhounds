@@ -1526,8 +1526,39 @@
         btnAddProduct.addEventListener('click', addNewProduct);
         btnResetQty.addEventListener('click', resetQuantities);
         btnRegistrarPedido.addEventListener('click', registrarPedido);
-        btnClearHistory.addEventListener('click', () => {
-            alert("Como os dados agora são sincronizados em nuvem via Firebase, recomendamos apagar os arquivos incorretos manualmente (lixeira) para segurança.");
+
+        btnClearHistory.addEventListener('click', async () => {
+            if (!(await checkPin("limpar TODO o histórico"))) return;
+
+            if (confirm("ATENÇÃO EXTREMA: Você está prestes a apagar TODOS os registros salvos na nuvem. Todos os usuários perderão acesso a essas informações. Deseja iniciar a varredura de exclusão?")) {
+                if (!hasFirebase) {
+                    alert("Operação bloqueada na cópia off-line.");
+                    return;
+                }
+
+                try {
+                    mostrarLoading(true);
+
+                    // Delete doc by doc since Firestore client doesn't have a single "delete collection" method
+                    const snapshot = await getDocs(collection(db, "registros_pedidos"));
+                    const deletePromises = [];
+                    snapshot.forEach((docSnap) => {
+                        deletePromises.push(deleteDoc(doc(db, "registros_pedidos", docSnap.id)));
+                    });
+
+                    await Promise.all(deletePromises);
+
+                    history = [];
+                    renderHistory();
+                    mostrarToast("Histórico Limpo com Sucesso!");
+
+                } catch (e) {
+                    console.error("Erro ao limpar histórico inteiro:", e);
+                    mostrarToast("Ops, erro ao apagar histórico da Nuvem.");
+                } finally {
+                    mostrarLoading(false);
+                }
+            }
         });
 
         closeModalBtn.addEventListener('click', closeOrderDetails);
